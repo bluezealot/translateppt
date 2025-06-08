@@ -9,6 +9,7 @@ import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xslf.usermodel.XSLFGroupShape;
 import org.apache.poi.xslf.usermodel.XSLFShape;
 import org.apache.poi.xslf.usermodel.XSLFSlide;
+import org.apache.poi.xslf.usermodel.XSLFTable;
 import org.apache.poi.xslf.usermodel.XSLFTextParagraph;
 import org.apache.poi.xslf.usermodel.XSLFTextRun;
 import org.apache.poi.xslf.usermodel.XSLFTextShape;
@@ -53,6 +54,17 @@ public class EntryService implements CommandLineRunner, ExitCodeGenerator{
                         textShapes.add((XSLFTextShape) shape);
                     } else if (shape instanceof XSLFGroupShape) {
                         shapesToProcess.addAll(0, ((XSLFGroupShape) shape).getShapes());
+                    } else if (shape instanceof XSLFTable) {
+                        // Process table cells
+                        XSLFTable table = (XSLFTable) shape;
+                        for (int row = 0; row < table.getNumberOfRows(); row++) {
+                            for (int col = 0; col < table.getNumberOfColumns(); col++) {
+                                XSLFTextShape cellShape = table.getCell(row, col);
+                                if (cellShape != null) {
+                                    textShapes.add(cellShape);
+                                }
+                            }
+                        }
                     }
                 }
             }
