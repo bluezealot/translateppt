@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
+import org.apache.poi.xslf.usermodel.XSLFDiagram;
 import org.apache.poi.xslf.usermodel.XSLFGroupShape;
 import org.apache.poi.xslf.usermodel.XSLFShape;
 import org.apache.poi.xslf.usermodel.XSLFSlide;
@@ -37,7 +38,7 @@ public class EntryService implements CommandLineRunner, ExitCodeGenerator{
         String sourceLang = "ja-jp"; // Source language
         String targetLang = "zh-cn"; // Target language
         
-        try(var fis = new FileInputStream("/Volumes/Seagate/ts_test/販売店おもてなしロボットAI搭載型の機能 20240119.pptx")){
+        try(var fis = new FileInputStream("/Volumes/Seagate/ts_test/testA.pptx")){
             XMLSlideShow ppt = new XMLSlideShow(fis);
             
             // Collect all text shapes first, including those in group shapes
@@ -62,6 +63,32 @@ public class EntryService implements CommandLineRunner, ExitCodeGenerator{
                                 XSLFTextShape cellShape = table.getCell(row, col);
                                 if (cellShape != null) {
                                     textShapes.add(cellShape);
+                                }
+                            }
+                        }
+                    } else if (shape instanceof XSLFDiagram) {
+                        // Process diagram shapes
+                        XSLFDiagram diagram = (XSLFDiagram) shape;
+                        XSLFDiagram.XSLFDiagramGroupShape diagramGroupShape = diagram.getGroupShape();
+                        if (diagramGroupShape != null) {
+                            List<XSLFShape> diagramShapes = diagramGroupShape.getShapes();
+                            for (XSLFShape diagramShape : diagramShapes) {
+                                if (diagramShape instanceof XSLFTextShape) {
+                                    // Store the diagram shape as well as the text shape
+                                    textShapes.add((XSLFTextShape) diagramShape);
+                                }
+                            }
+                        }
+                    } else if (shape instanceof XSLFGroupShape) {
+                        // Process group shapes
+                        XSLFGroupShape group = (XSLFGroupShape) shape;
+                        List<XSLFShape> groupShapes = group.getShapes();
+                        if (groupShapes != null) {
+                            for (XSLFShape groupShape : groupShapes) {
+                                if (groupShape instanceof XSLFTextShape) {
+                                    textShapes.add((XSLFTextShape) groupShape);
+                                } else if (groupShape instanceof XSLFGroupShape) {
+                                    shapesToProcess.add(0, groupShape);
                                 }
                             }
                         }
@@ -120,7 +147,7 @@ public class EntryService implements CommandLineRunner, ExitCodeGenerator{
             }
             
             // Save the translated PPT
-            try(FileOutputStream fos = new FileOutputStream("/Volumes/Seagate/ts_test/販売店おもてなしロボットAI搭載型の機能 20240119_translated.pptx", false)) {
+            try(FileOutputStream fos = new FileOutputStream("/Volumes/Seagate/ts_test/testA_translated.pptx", false)) {
                 ppt.write(fos);
                 log.info("Successfully saved translated PPT");
             }

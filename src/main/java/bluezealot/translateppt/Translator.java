@@ -23,6 +23,36 @@ public class Translator {
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
 
+    private static final int MAX_RETRIES = 3;
+    private static final int INITIAL_DELAY_MS = 1000;
+
+    private String makeApiCall(Request request) throws IOException {
+        int delay = INITIAL_DELAY_MS;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                try (Response response = client.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        throw new IOException("Unexpected response: " + response);
+                    }
+                    return response.body().string();
+                }
+            } catch (Exception e) {
+                if (attempt == MAX_RETRIES) {
+                    throw e;
+                }
+                System.out.println("API call failed. Attempt " + attempt + " of " + MAX_RETRIES + ". Retrying in " + delay + "ms...");
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Thread interrupted during retry wait", ie);
+                }
+                delay *= 2; // Double the delay for next attempt
+            }
+        }
+        return null; // Should never reach here
+    }
+
     public String translate(String sourceText, String sourceLang, String targetLang) throws IOException {
         JsonObject message1 = new JsonObject();
         message1.addProperty("role", "system");
@@ -47,17 +77,12 @@ public class Translator {
                 .post(RequestBody.create(gson.toJson(requestBody), MediaType.get("application/json")))
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response: " + response);
-            }
-
-            JsonObject responseJson = JsonParser.parseString(response.body().string()).getAsJsonObject();
-            return responseJson
-                    .getAsJsonArray("choices")
-                    .get(0).getAsJsonObject()
-                    .getAsJsonObject("message")
-                    .get("content").getAsString().trim();
-        }
+        String responseString = makeApiCall(request);
+        JsonObject responseJson = JsonParser.parseString(responseString).getAsJsonObject();
+        return responseJson
+                .getAsJsonArray("choices")
+                .get(0).getAsJsonObject()
+                .getAsJsonObject("message")
+                .get("content").getAsString().trim();
     }
 }
